@@ -1,0 +1,20 @@
+{
+  "name": "secondbraine2e",
+  "version": "1.0.0",
+  "description": "This is my Implementation of a Second Brain Application. Read the Readme file for more information and the design",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.17.1",
+    "typescript": "^5.9.2"
+  }
+}

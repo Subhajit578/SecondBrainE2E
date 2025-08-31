@@ -18,13 +18,23 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const zod_1 = require("zod");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const db_1 = require("./db");
+const middleware_1 = require("./middleware");
+const cors_1 = __importDefault(require("cors"));
 mongoose_1.default.connect('mongodb+srv://subhajit:October_2004@cluster0.o2qpyhf.mongodb.net/SecondBrainE2E');
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
+app.use((0, cors_1.default)());
+app.use((0, cors_1.default)());
 const JWT_SECRET = "SecondBrainE2E";
 const idealUserModel = zod_1.z.object({
     username: zod_1.z.string().min(3).max(10),
     password: zod_1.z.string().min(8).max(20).regex(/[@&_#]/, "Password Should have one Special Character").regex(/[a-z]/, "Password should have One uppercase Character").regex(/[A-Z]/, "Password should have one lowerCase Character")
+});
+const idealContentModel = zod_1.z.object({
+    type: zod_1.z.enum(['document', 'tweet', 'youtube', 'link']),
+    link: zod_1.z.string().url().optional(),
+    title: zod_1.z.string().min(1).max(200),
+    tags: zod_1.z.array(zod_1.z.string().min(1)).default([])
 });
 app.post("/api/v1/signup", function (req, res) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -70,18 +80,81 @@ app.post("/api/v1/signin", function (req, res) {
                 res.status(403).send({ message: "Invalid Password" });
             }
             else {
-                const token = jsonwebtoken_1.default.sign({ username: user.username }, JWT_SECRET);
+                const token = jsonwebtoken_1.default.sign({ username: user.username, id: user._id }, JWT_SECRET);
                 res.status(200).send({ token: token });
             }
         }
     });
 });
-app.post("/api/v1/content", (req, res) => {
-});
-app.post("/api/v1/content", (req, res) => {
-});
-app.delete("/api/v1/content", (req, res) => {
-});
+// {
+// 	"type": "document" | "tweet" | "youtube" | "link",
+// 	"link": "url",
+// 	"title": "Title of doc/video",
+// 	"tags": ["productivity", "politics", ...]
+// }
+app.post("/api/v1/content", middleware_1.isLoggedIn, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const userId = req.id;
+    const type = req.body.type;
+    const link = req.body.link;
+    const title = req.body.title;
+    const tags = req.body.tags;
+    const isIdeal = idealContentModel.safeParse({ type: type, link: link, title: title, tags: tags });
+    console.log(userId);
+    if (!isIdeal.success) {
+        res.status(411).send({ message: "Invalid Input Type" });
+    }
+    else {
+        try {
+            // const content = new Schema({
+            //     userId : {type:ObjectId},
+            //     type: {type:String, enum: ['document','tweet','youtube','link'],required:true},
+            //     link: {type:String,trim: true},
+            //     title: {type:String,required:true,trim :true},
+            //     tags: {type:[String],default:[]}
+            // })
+            yield db_1.ContentModel.create({
+                userId: userId,
+                type: type,
+                link: link,
+                title: title,
+                tags: tags
+            });
+            res.status(200).send({ message: "Added To Brain" });
+        }
+        catch (err) {
+            res.status(402).send({ error: err });
+        }
+    }
+}));
+app.get("/api/v1/allContent", middleware_1.isLoggedIn, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const userId = req.id;
+    console.log(userId);
+    try {
+        const contents = yield db_1.ContentModel.find({ userId });
+        res.status(200).send(contents);
+    }
+    catch (err) {
+        res.status(404).send({ error: err });
+    }
+}));
+app.delete("/api/v1/deleteContent/:id", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const userId = req.id;
+    const id = String(req.params.id || '').trim();
+    try {
+        const deleted = yield db_1.ContentModel.findByIdAndDelete({
+            _id: id, userId: userId
+        });
+        if (!deleted) {
+            res.status(404).send({ message: "Content does not exist" });
+        }
+        else {
+            res.status(200).send({ message: "User Deleted" });
+        }
+    }
+    catch (err) {
+        res.status(404).send({ error: err });
+    }
+}));
 app.post("/api/v1/brain/share", (req, res) => {
 });
 app.get("/api/v1/brain/:shareLink", (req, res) => {

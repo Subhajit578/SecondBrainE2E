@@ -1,13 +1,16 @@
 import express from 'express'
-import mongoose from 'mongoose'
+import mongoose, { isValidObjectId } from 'mongoose'
 import jwt from 'jsonwebtoken'
 import {z}  from 'zod'
 import bcrypt from 'bcrypt'
 import {UserModel,ContentModel} from './db'
 import { isLoggedIn } from './middleware'
+import cors from 'cors'
 mongoose.connect('mongodb+srv://subhajit:October_2004@cluster0.o2qpyhf.mongodb.net/SecondBrainE2E')
 const app = express()
 app.use(express.json())
+app.use(cors())
+app.use(cors())
 const JWT_SECRET = "SecondBrainE2E"
 const idealUserModel = z.object({
     username: z.string().min(3).max(10),
@@ -67,21 +70,66 @@ app.post("/api/v1/signin", async function(req,res) {
 // 	"title": "Title of doc/video",
 // 	"tags": ["productivity", "politics", ...]
 // }
-app.post("/api/v1/content",isLoggedIn, (req,res)=> {
-    const decodedToken = jwt.verify(req.body.token,JWT_SECRET) as { id?: string; username: string }
-    const userId = decodedToken.id
-    const username = decodedToken.username
+app.post("/api/v1/content",isLoggedIn, async (req,res)=> {
+   
+    const userId = (req as any).id
     const type = req.body.type
     const link = req.body.link
     const title = req.body.title
-    const tags = req.body.title
+    const tags = req.body.tags
     const isIdeal = idealContentModel.safeParse({type:type,link:link,title:title,tags:tags})
+    console.log(userId)
+    if(!isIdeal.success){
+        res.status(411).send({message:"Invalid Input Type"})
+    }
+    else {
+        try {
+            // const content = new Schema({
+            //     userId : {type:ObjectId},
+            //     type: {type:String, enum: ['document','tweet','youtube','link'],required:true},
+            //     link: {type:String,trim: true},
+            //     title: {type:String,required:true,trim :true},
+            //     tags: {type:[String],default:[]}
+            // })
+            await ContentModel.create({
+                userId : userId,
+                type:type,
+                link:link,
+                title:title,
+                tags:tags
+            })
+            res.status(200).send({message:"Added To Brain"})
+        }catch(err) {
+            res.status(402).send({error:err})
+        }
+    }
 })
-app.post("/api/v1/content", (req,res)=> {
-    
+app.get("/api/v1/allContent", isLoggedIn, async (req,res)=> {
+    const userId = (req as any).id 
+    console.log(userId)
+    try{
+        const contents = await ContentModel.find({userId})
+        res.status(200).send(contents)
+    } catch(err){
+        res.status(404).send({error:err})
+    }
 })
-app.delete("/api/v1/content", (req,res)=> {
-    
+app.delete("/api/v1/deleteContent/:id", async (req,res)=> {
+    const userId = (req as any ).id
+    const id =  String(req.params.id || '').trim()
+     
+        try{
+            const deleted = await ContentModel.findByIdAndDelete({
+                _id: id,userId:userId
+            })
+            if(!deleted){
+                res.status(404).send({message:"Content does not exist"})
+            } else {
+                res.status(200).send({message:"User Deleted"})
+            }
+        } catch(err){
+            res.status(404).send({error:err})
+        }
 })
 app.post("/api/v1/brain/share", (req,res)=> {
     

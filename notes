@@ -1,0 +1,4 @@
+TRo integrate QWe need to use something called Vector database and Embeddings 
+Embeddings - Every Piece of text can be converted into vectors which are called Embeddings 
+Vector Db - We will basically store the embeddings of all the queries 
+So when a asks some questions we will convert the question into embeddings and ask db to give me the closest embeddings and the respective queries 

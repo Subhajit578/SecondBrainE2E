@@ -11,7 +11,7 @@ const content = new Schema({
     type: {type:String, enum: ['document','tweet','youtube','link','image','video','article','audio'],required:true},
     link: {type:String,trim: true},
     title: {type:String,required:true,trim :true},
-    tags: {type:ObjectId,ref:'Tag'}
+    tags:   [{ type: Schema.Types.ObjectId, ref: 'Tag' }]
 })
 const tags = new Schema({
     title:{type:String,required:true,unique:true}

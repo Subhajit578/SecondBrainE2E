@@ -20,6 +20,7 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const db_1 = require("./db");
 const middleware_1 = require("./middleware");
 const cors_1 = __importDefault(require("cors"));
+const util_1 = require("./util");
 mongoose_1.default.connect('mongodb+srv://subhajit:October_2004@cluster0.o2qpyhf.mongodb.net/SecondBrainE2E');
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
@@ -130,7 +131,7 @@ app.get("/api/v1/allContent", middleware_1.isLoggedIn, (req, res) => __awaiter(v
     const userId = req.id;
     console.log(userId);
     try {
-        const contents = yield db_1.ContentModel.find({ userId });
+        const contents = yield db_1.ContentModel.find({ userId }).populate("userId", "username");
         res.status(200).send(contents);
     }
     catch (err) {
@@ -155,8 +156,21 @@ app.delete("/api/v1/deleteContent/:id", (req, res) => __awaiter(void 0, void 0, 
         res.status(404).send({ error: err });
     }
 }));
-app.post("/api/v1/brain/share", (req, res) => {
-});
+app.post("/api/v1/brain/share", middleware_1.isLoggedIn, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const share = req.body.share;
+    if (share) {
+        yield db_1.LinkModel.create({
+            userId: req.id,
+            hash: (0, util_1.random)(10)
+        });
+    }
+    else {
+        yield db_1.LinkModel.deleteOne({
+            userId: req.id
+        });
+    }
+    res.send({ message: "Updated Sharable Link" });
+}));
 app.get("/api/v1/brain/:shareLink", (req, res) => {
 });
 app.listen(3000);

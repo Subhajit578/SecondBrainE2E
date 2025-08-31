@@ -3,9 +3,10 @@ import mongoose, { isValidObjectId } from 'mongoose'
 import jwt from 'jsonwebtoken'
 import {z}  from 'zod'
 import bcrypt from 'bcrypt'
-import {UserModel,ContentModel} from './db'
+import {UserModel,ContentModel,LinkModel} from './db'
 import { isLoggedIn } from './middleware'
 import cors from 'cors'
+import {random} from './util'
 mongoose.connect('mongodb+srv://subhajit:October_2004@cluster0.o2qpyhf.mongodb.net/SecondBrainE2E')
 const app = express()
 app.use(express.json())
@@ -108,7 +109,7 @@ app.get("/api/v1/allContent", isLoggedIn, async (req,res)=> {
     const userId = (req as any).id 
     console.log(userId)
     try{
-        const contents = await ContentModel.find({userId})
+        const contents = await ContentModel.find({userId}).populate("userId","username")
         res.status(200).send(contents)
     } catch(err){
         res.status(404).send({error:err})
@@ -117,7 +118,6 @@ app.get("/api/v1/allContent", isLoggedIn, async (req,res)=> {
 app.delete("/api/v1/deleteContent/:id", async (req,res)=> {
     const userId = (req as any ).id
     const id =  String(req.params.id || '').trim()
-     
         try{
             const deleted = await ContentModel.findByIdAndDelete({
                 _id: id,userId:userId
@@ -131,8 +131,19 @@ app.delete("/api/v1/deleteContent/:id", async (req,res)=> {
             res.status(404).send({error:err})
         }
 })
-app.post("/api/v1/brain/share", (req,res)=> {
-    
+app.post("/api/v1/brain/share", isLoggedIn,async (req,res)=> {
+    const share = req.body.share
+    if(share){
+        await LinkModel.create({
+            userId:(req as any).id,
+            hash:random(10)
+        })
+    } else {
+        await LinkModel.deleteOne({
+            userId:(req as any).id
+        })
+    }
+    res.send({message:"Updated Sharable Link"})
 })
 app.get("/api/v1/brain/:shareLink",(req,res)=>{
 

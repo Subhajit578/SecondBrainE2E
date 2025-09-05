@@ -131,6 +131,7 @@ app.delete("/api/v1/deleteContent/:id", async (req,res)=> {
             res.status(404).send({error:err})
         }
 })
+//make it so the link model is unique 
 app.post("/api/v1/brain/share", isLoggedIn,async (req,res)=> {
     const share = req.body.share
     if(share){
@@ -145,7 +146,31 @@ app.post("/api/v1/brain/share", isLoggedIn,async (req,res)=> {
     }
     res.send({message:"Updated Sharable Link"})
 })
-app.get("/api/v1/brain/:shareLink",(req,res)=>{
-
+app.get("/api/v1/brain/shareLink/:hash",async (req,res)=>{
+    const hash = req.params.hash
+    try {
+    const link = await LinkModel.findOne({
+        hash
+    })
+    if(!link){
+        res.status(404).send({message:"Link Not found"})
+        
+    } else {
+    const content = await ContentModel.find({
+        userId:link.userId
+    })
+    const user = await UserModel.findOne({
+        userId:link.userId
+    })
+    res.status(200).send(
+        {
+            username:user?.username,
+            content: content
+        }
+    )
+}
+} catch(err){
+    res.status(490).send({error:err})
+}
 })
 app.listen(3000)

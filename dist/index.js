@@ -171,6 +171,30 @@ app.post("/api/v1/brain/share", middleware_1.isLoggedIn, (req, res) => __awaiter
     }
     res.send({ message: "Updated Sharable Link" });
 }));
-app.get("/api/v1/brain/:shareLink", (req, res) => {
-});
+app.get("/api/v1/brain/shareLink/:hash", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const hash = req.params.hash;
+    try {
+        const link = yield db_1.LinkModel.findOne({
+            hash
+        });
+        if (!link) {
+            res.status(404).send({ message: "Link Not found" });
+        }
+        else {
+            const content = yield db_1.ContentModel.find({
+                userId: link.userId
+            });
+            const user = yield db_1.UserModel.findOne({
+                userId: link.userId
+            });
+            res.status(200).send({
+                username: user === null || user === void 0 ? void 0 : user.username,
+                content: content
+            });
+        }
+    }
+    catch (err) {
+        res.status(490).send({ error: err });
+    }
+}));
 app.listen(3000);

@@ -32,7 +32,7 @@ const idealUserModel = zod_1.z.object({
     password: zod_1.z.string().min(8).max(20).regex(/[@&_#]/, "Password Should have one Special Character").regex(/[a-z]/, "Password should have One uppercase Character").regex(/[A-Z]/, "Password should have one lowerCase Character")
 });
 const idealContentModel = zod_1.z.object({
-    type: zod_1.z.enum(['document', 'tweet', 'youtube', 'link']),
+    type: zod_1.z.enum(['article', 'tweet', 'youtube']),
     link: zod_1.z.string().url().optional(),
     title: zod_1.z.string().min(1).max(200),
     tags: zod_1.z.array(zod_1.z.string().min(1)).default([])
@@ -66,11 +66,11 @@ app.post("/api/v1/signin", function (req, res) {
         const password = req.body.password;
         const isIdeal = idealUserModel.safeParse(req.body);
         if (!isIdeal.success) {
-            res.status(411).send({ message: "Error in Input" });
+            return res.status(411).send({ message: "Error in Input" });
         }
         const user = yield db_1.UserModel.findOne({ username: username });
         if (!user) {
-            res.status(404).send({ message: "User not found" });
+            return res.status(404).send({ message: "User not found" });
         }
         else {
             if (!user || !user.password) {
@@ -78,11 +78,11 @@ app.post("/api/v1/signin", function (req, res) {
             }
             const passwordMatch = yield bcrypt_1.default.compare(password, user.password);
             if (!passwordMatch) {
-                res.status(403).send({ message: "Invalid Password" });
+                return res.status(403).send({ message: "Invalid Password" });
             }
             else {
                 const token = jsonwebtoken_1.default.sign({ username: user.username, id: user._id }, JWT_SECRET);
-                res.status(200).send({ token: token });
+                return res.status(200).send({ token: token });
             }
         }
     });
@@ -102,7 +102,8 @@ app.post("/api/v1/content", middleware_1.isLoggedIn, (req, res) => __awaiter(voi
     const isIdeal = idealContentModel.safeParse({ type: type, link: link, title: title, tags: tags });
     console.log(userId);
     if (!isIdeal.success) {
-        res.status(411).send({ message: "Invalid Input Type" });
+        console.log(isIdeal.error.flatten()); // <-- see the exact reason
+        return res.status(422).json({ message: "Invalid input", issues: isIdeal.error.flatten() });
     }
     else {
         try {
@@ -113,12 +114,20 @@ app.post("/api/v1/content", middleware_1.isLoggedIn, (req, res) => __awaiter(voi
             //     title: {type:String,required:true,trim :true},
             //     tags: {type:[String],default:[]}
             // })
+            const tagIds = [];
+            if (Array.isArray(tags)) {
+                for (const t of tags) {
+                    const doc = yield db_1.TagModel.findOneAndUpdate({ title: t.trim() }, { $setOnInsert: { title: t.trim() } }, { new: true, upsert: true }).lean();
+                    if (doc === null || doc === void 0 ? void 0 : doc._id)
+                        tagIds.push(doc._id);
+                }
+            }
             yield db_1.ContentModel.create({
                 userId: userId,
                 type: type,
                 link: link,
                 title: title,
-                tags: tags
+                tags: tagIds
             });
             res.status(200).send({ message: "Added To Brain" });
         }
@@ -156,6 +165,7 @@ app.delete("/api/v1/deleteContent/:id", (req, res) => __awaiter(void 0, void 0, 
         res.status(404).send({ error: err });
     }
 }));
+//make it so the link model is unique 
 app.post("/api/v1/brain/share", middleware_1.isLoggedIn, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const share = req.body.share;
     if (share) {

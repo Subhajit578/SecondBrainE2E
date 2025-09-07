@@ -3,7 +3,7 @@ import mongoose, { isValidObjectId } from 'mongoose'
 import jwt from 'jsonwebtoken'
 import {z}  from 'zod'
 import bcrypt from 'bcrypt'
-import {UserModel,ContentModel,LinkModel} from './db'
+import {UserModel,ContentModel,LinkModel,TagModel} from './db'
 import { isLoggedIn } from './middleware'
 import cors from 'cors'
 import {random} from './util'
@@ -18,7 +18,7 @@ const idealUserModel = z.object({
     password:z.string().min(8).max(20).regex(/[@&_#]/,"Password Should have one Special Character").regex(/[a-z]/,"Password should have One uppercase Character").regex(/[A-Z]/,"Password should have one lowerCase Character")
 })
 const idealContentModel = z.object({
-    type:z.enum(['document','tweet','youtube','link']),
+    type:z.enum(['article','tweet','youtube']),
     link: z.string().url().optional(),
     title: z.string().min(1).max(200),
     tags:z.array(z.string().min(1)).default([])
@@ -47,21 +47,21 @@ app.post("/api/v1/signin", async function(req,res) {
     const password = req.body.password
     const isIdeal = idealUserModel.safeParse(req.body)
     if(!isIdeal.success){
-        res.status(411).send({message:"Error in Input"})
+        return res.status(411).send({message:"Error in Input"})
     }
     const user = await UserModel.findOne({username:username})
     if(!user){
-        res.status(404).send({message:"User not found"})
+        return res.status(404).send({message:"User not found"})
     } else {
         if (!user || !user.password) {
             return res.status(404).json({ message: "User not found" })
           }
         const passwordMatch = await bcrypt.compare(password,user.password)
         if(!passwordMatch){
-            res.status(403).send({message:"Invalid Password"})
+            return res.status(403).send({message:"Invalid Password"})
         } else {
             const token = jwt.sign({username:user.username,id:user._id},JWT_SECRET)
-            res.status(200).send({token : token})
+            return res.status(200).send({token : token})
         }
     }
 }) 
@@ -72,7 +72,6 @@ app.post("/api/v1/signin", async function(req,res) {
 // 	"tags": ["productivity", "politics", ...]
 // }
 app.post("/api/v1/content",isLoggedIn, async (req,res)=> {
-   
     const userId = (req as any).id
     const type = req.body.type
     const link = req.body.link
@@ -81,7 +80,8 @@ app.post("/api/v1/content",isLoggedIn, async (req,res)=> {
     const isIdeal = idealContentModel.safeParse({type:type,link:link,title:title,tags:tags})
     console.log(userId)
     if(!isIdeal.success){
-        res.status(411).send({message:"Invalid Input Type"})
+        console.log(isIdeal.error.flatten());           // <-- see the exact reason
+  return res.status(422).json({ message: "Invalid input", issues: isIdeal.error.flatten() });
     }
     else {
         try {
@@ -92,12 +92,23 @@ app.post("/api/v1/content",isLoggedIn, async (req,res)=> {
             //     title: {type:String,required:true,trim :true},
             //     tags: {type:[String],default:[]}
             // })
+            const tagIds: mongoose.Types.ObjectId[] = [];
+    if (Array.isArray(tags)) {
+      for (const t of tags) {
+        const doc = await TagModel.findOneAndUpdate(
+          { title: t.trim() },
+          { $setOnInsert: { title: t.trim() } },
+          { new: true, upsert: true }
+        ).lean();
+        if (doc?._id) tagIds.push(doc._id);
+      }
+    }
             await ContentModel.create({
                 userId : userId,
                 type:type,
                 link:link,
                 title:title,
-                tags:tags
+                tags:tagIds
             })
             res.status(200).send({message:"Added To Brain"})
         }catch(err) {

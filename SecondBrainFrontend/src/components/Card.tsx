@@ -2,7 +2,7 @@ import { ShareIcon } from "../icons/ShareIcon";
 interface CardProps {
     title:string,
     link:string,
-    type:"twitter" | "youtube"
+    type:"tweet" | "youtube" | "article"
 }
 export function Card({title,link,type}: CardProps){
     return <div>
@@ -28,7 +28,7 @@ export function Card({title,link,type}: CardProps){
         <div className="pt-4">
         {type === "youtube" && <iframe className="w-full" src={link.replace("watch","embed").replace("?v=","/")} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen></iframe>
         }
-        {type === "twitter" && <blockquote className="twitter-tweet">
+        {type === "tweet" && <blockquote className="twitter-tweet">
             <a href={link.replace("x.com","twitter.com")}>
             </a>
             </blockquote>}

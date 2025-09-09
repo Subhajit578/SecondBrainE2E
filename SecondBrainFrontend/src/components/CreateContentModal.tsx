@@ -24,6 +24,7 @@ export function CreateContentModal({ open,onClose}){
                 "token": localStorage.getItem("token")
             }
         })
+        onClose();
     }
     return <div>
         {open && <div>
